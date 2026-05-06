@@ -11,6 +11,7 @@ output reg [2*width:0] res;
 reg [1:0] count1, count2;
 reg [width-1:0] temp1, temp2;
 reg [2*width:0] temp_res;
+reg [2*width:0] temp_sum;
 
 localparam shift_width = $clog2(width);
 wire [shift_width-1:0] rot_amt;
@@ -19,7 +20,7 @@ assign rot_amt = opb[shift_width-1:0];
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         err   <= 1'b0;
-        res   <= {(2*width){1'b0}};
+        res   <= {(2*width+1){1'b0}};
         oflow <= 1'b0;
         cout  <= 1'b0;
         g     <= 1'b0;
@@ -39,63 +40,65 @@ always @(posedge clk or posedge rst) begin
             case (cmd)
                 0: begin
                     if (inp_valid == 2'b11) begin
-                        res  = opa + opb;
-                        cout = res[width];
+                        temp_sum = {1'b0, opa} + {1'b0, opb};
+                        res  <= temp_sum;
+                        cout <= temp_sum[width];
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 1: begin
                     if (inp_valid == 2'b11)
-                        res = opa - opb;
-                    else err = 1'b1;
+                        res <= opa - opb;
+                    else err <= 1'b1;
                 end
 
                 2: begin
                     if (inp_valid == 2'b11) begin
-                        res  = opa + opb + cin;
-                        cout = res[width];
+                        temp_sum = {1'b0, opa} + {1'b0, opb} + cin;
+                        res  <= temp_sum;
+                        cout <= temp_sum[width];
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 3: begin
                     if (inp_valid == 2'b11)
-                        res = opa - opb - cin;
-                    else err = 1'b1;
+                        res <= opa - opb - cin;
+                    else err <= 1'b1;
                 end
 
                 4: begin
                     if (inp_valid == 2'b01)
-                        res = opa + 1'b1;
-                    else err = 1'b1;
+                        res <= opa + 1'b1;
+                    else err <= 1'b1;
                 end
 
                 5: begin
                     if (inp_valid == 2'b01)
-                        res = opa - 1'b1;
-                    else err = 1'b1;
+                        res <= opa - 1'b1;
+                    else err <= 1'b1;
                 end
 
                 6: begin
                     if (inp_valid == 2'b10)
-                        res = opb + 1'b1;
-                    else err = 1'b1;
+                        res <= opb + 1'b1;
+                    else err <= 1'b1;
                 end
 
                 7: begin
                     if (inp_valid == 2'b10)
-                        res = opb - 1'b1;
-                    else err = 1'b1;
+                        res <= opb - 1'b1;
+                    else err <= 1'b1;
                 end
 
                 8: begin
                     if (inp_valid == 2'b11) begin
-                        if      (opa > opb)  begin g = 1'b1; l = 1'b0; e = 1'b0; end
-                        else if (opa < opb)  begin g = 1'b0; l = 1'b1; e = 1'b0; end
-                        else if (opa == opb) begin g = 1'b0; l = 1'b0; e = 1'b1; end
+                        if      (opa > opb)  begin g <= 1'b1; l <= 1'b0; e <= 1'b0; end
+                        else if (opa < opb)  begin g <= 1'b0; l <= 1'b1; e <= 1'b0; end
+                        else if (opa == opb) begin g <= 1'b0; l <= 1'b0; e <= 1'b1; end
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 9: begin
@@ -112,7 +115,7 @@ always @(posedge clk or posedge rst) begin
                             temp_res  = temp1 * temp2;
                         end
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 10: begin
@@ -127,37 +130,39 @@ always @(posedge clk or posedge rst) begin
                             temp_res  = temp1 * opb;
                         end
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 11: begin
                     if (inp_valid == 2'b11) begin
-                        res   = $signed(opa) + $signed(opb);
-                        oflow = (opa[width-1] & opb[width-1] & ~res[width-1]) |
-                                (~opa[width-1] & ~opb[width-1] & res[width-1]);
-                        cout  = res[width];
-                        if      ($signed(opa) > $signed(opb))  begin g = 1'b1; l = 1'b0; e = 1'b0; end
-                        else if ($signed(opa) < $signed(opb))  begin g = 1'b0; l = 1'b1; e = 1'b0; end
-                        if      ($signed(opa) == $signed(opb)) begin g = 1'b0; l = 1'b0; e = 1'b1; end
+                        temp_sum = $signed(opa) + $signed(opb);
+                        res   <= temp_sum;
+                        oflow <= (opa[width-1] & opb[width-1] & ~temp_sum[width-1]) |
+                                 (~opa[width-1] & ~opb[width-1] & temp_sum[width-1]);
+                        cout  <= temp_sum[width];
+                        if      ($signed(opa) > $signed(opb))  begin g <= 1'b1; l <= 1'b0; e <= 1'b0; end
+                        else if ($signed(opa) < $signed(opb))  begin g <= 1'b0; l <= 1'b1; e <= 1'b0; end
+                        if      ($signed(opa) == $signed(opb)) begin g <= 1'b0; l <= 1'b0; e <= 1'b1; end
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 12: begin
                     if (inp_valid == 2'b11) begin
-                        res   = $signed(opa) - $signed(opb);
-                        oflow = (opa[width-1] ^ opb[width-1]) & (opa[width-1] ^ res[width-1]);
-                        cout  = res[width];
-                        if      ($signed(opa) > $signed(opb))  begin g = 1'b1; l = 1'b0; e = 1'b0; end
-                        else if ($signed(opa) < $signed(opb))  begin g = 1'b0; l = 1'b1; e = 1'b0; end
-                        if      ($signed(opa) == $signed(opb)) begin g = 1'b0; l = 1'b0; e = 1'b1; end
+                        temp_sum = $signed(opa) - $signed(opb);
+                        res   <= temp_sum;
+                        oflow <= (opa[width-1] ^ opb[width-1]) & (opa[width-1] ^ temp_sum[width-1]);
+                        cout  <= temp_sum[width];
+                        if      ($signed(opa) > $signed(opb))  begin g <= 1'b1; l <= 1'b0; e <= 1'b0; end
+                        else if ($signed(opa) < $signed(opb))  begin g <= 1'b0; l <= 1'b1; e <= 1'b0; end
+                        if      ($signed(opa) == $signed(opb)) begin g <= 1'b0; l <= 1'b0; e <= 1'b1; end
                     end
-                    else err = 1'b1;
+                    else err <= 1'b1;
                 end
 
                 default: begin
                     err   <= 1'b0;
-                    res   <= {(2*width){1'b0}};
+                    res   <= {(2*width+1){1'b0}};
                     oflow <= 1'b0;
                     cout  <= 1'b0;
                     g     <= 1'b0;
@@ -169,18 +174,18 @@ always @(posedge clk or posedge rst) begin
 
         else if (!mode) begin
             case (cmd)
-                0:  begin if (inp_valid == 2'b11) res =  (opa & opb); else err = 1'b1; end
-                1:  begin if (inp_valid == 2'b11) res = ~(opa & opb); else err = 1'b1; end
-                2:  begin if (inp_valid == 2'b11) res =  (opa | opb); else err = 1'b1; end
-                3:  begin if (inp_valid == 2'b11) res = ~(opa | opb); else err = 1'b1; end
-                4:  begin if (inp_valid == 2'b11) res =  (opa ^ opb); else err = 1'b1; end
-                5:  begin if (inp_valid == 2'b11) res = ~(opa ^ opb); else err = 1'b1; end
-                6:  begin if (inp_valid == 2'b01) res = ~opa;          else err = 1'b1; end
-                7:  begin if (inp_valid == 2'b10) res = ~opb;          else err = 1'b1; end
-                8:  begin if (inp_valid == 2'b01) res = opa >> 1'b1;   else err = 1'b1; end
-                9:  begin if (inp_valid == 2'b01) res = opa << 1'b1;   else err = 1'b1; end
-                10: begin if (inp_valid == 2'b10) res = opb >> 1'b1;   else err = 1'b1; end
-                11: begin if (inp_valid == 2'b10) res = opb << 1'b1;   else err = 1'b1; end
+                0:  begin if (inp_valid == 2'b11) res <=  (opa & opb); else err <= 1'b1; end
+                1:  begin if (inp_valid == 2'b11) res <= ~(opa & opb); else err <= 1'b1; end
+                2:  begin if (inp_valid == 2'b11) res <=  (opa | opb); else err <= 1'b1; end
+                3:  begin if (inp_valid == 2'b11) res <= ~(opa | opb); else err <= 1'b1; end
+                4:  begin if (inp_valid == 2'b11) res <=  (opa ^ opb); else err <= 1'b1; end
+                5:  begin if (inp_valid == 2'b11) res <= ~(opa ^ opb); else err <= 1'b1; end
+                6:  begin if (inp_valid == 2'b01) res <= ~opa;          else err <= 1'b1; end
+                7:  begin if (inp_valid == 2'b10) res <= ~opb;          else err <= 1'b1; end
+                8:  begin if (inp_valid == 2'b01) res <= opa >> 1'b1;   else err <= 1'b1; end
+                9:  begin if (inp_valid == 2'b01) res <= opa << 1'b1;   else err <= 1'b1; end
+                10: begin if (inp_valid == 2'b10) res <= opb >> 1'b1;   else err <= 1'b1; end
+                11: begin if (inp_valid == 2'b10) res <= opb << 1'b1;   else err <= 1'b1; end
 
                 12: begin
                     if (inp_valid == 2'b11) begin
@@ -210,7 +215,7 @@ always @(posedge clk or posedge rst) begin
                     end
                 end
 
-                default: err = 1'b1;
+                default: err <= 1'b1;
             endcase
         end
     end
